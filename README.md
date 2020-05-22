@@ -31,8 +31,10 @@ All but advanced functionality is provided through a single header:
 
 In this example we will also use the auxiliary library of `example.hpp`:
 ```cpp
-#include "../example.hpp"    
+#include "example.hpp"    
 ```
+
+Notice the example.hpp has been modified in line #91, to #include "stb_easy_font.h".
 
 We define 3 auxilary functions: `draw_axes` and `draw_floor`, which draw axes and floor grid respectively; and `render_scene` which prepares the general set-up of the scence, handles user manipulation etc.
 
