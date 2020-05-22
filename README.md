@@ -1,5 +1,6 @@
-# rs-motion Sample
-~/realsense/librealsense/examples/motion_skc
+# Mainmoil T265
+modified from : 
+~/realsense/librealsense/examples/motion
 
 This version can be compiled standalone. It is modified from realsense sample code:
 https://github.com/IntelRealSense/librealsense/tree/master/examples/motion
