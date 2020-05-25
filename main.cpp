@@ -2,8 +2,9 @@
 // Copyright(c) 2019 Intel Corporation. All Rights Reserved.
 #include <librealsense2/rs.hpp>
 #include <mutex>
-#include "example.hpp"          // Include short list of convenience functions for rendering
 #include <cstring>
+#include "example.hpp" // Include short list of convenience functions for rendering
+#include "moilview.h"
 
 struct short3
 {
@@ -17,9 +18,15 @@ void draw_axes()
     glLineWidth(2);
     glBegin(GL_LINES);
     // Draw x, y, z axes
-    glColor3f(1, 0, 0); glVertex3f(0, 0, 0);  glVertex3f(-1, 0, 0);
-    glColor3f(0, 1, 0); glVertex3f(0, 0, 0);  glVertex3f(0, -1, 0);
-    glColor3f(0, 0, 1); glVertex3f(0, 0, 0);  glVertex3f(0, 0, 1);
+    glColor3f(1, 0, 0);
+    glVertex3f(0, 0, 0);
+    glVertex3f(-1, 0, 0);
+    glColor3f(0, 1, 0);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, -1, 0);
+    glColor3f(0, 0, 1);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, 0, 1);
     glEnd();
 
     glLineWidth(1);
@@ -55,7 +62,7 @@ void render_scene(glfw_state app_state)
     glLoadIdentity();
     gluLookAt(1, 0, 5, 1, 0, 0, 0, -1, 0);
 
-    glTranslatef(0, 0, +0.5f + app_state.offset_y*0.05f);
+    glTranslatef(0, 0, +0.5f + app_state.offset_y * 0.05f);
     glRotated(app_state.pitch, -1, 0, 0);
     glRotated(app_state.yaw, 0, 1, 0);
     draw_floor();
@@ -65,6 +72,7 @@ class camera_renderer
 {
     std::vector<float3> positions, normals;
     std::vector<short3> indexes;
+
 public:
     // Initialize renderer with data needed to draw the camera
     camera_renderer()
@@ -92,7 +100,7 @@ public:
 
         glBegin(GL_TRIANGLES);
         // Draw the camera
-        for (auto& i : indexes)
+        for (auto &i : indexes)
         {
             glVertex3fv(&positions[i.x].x);
             glVertex3fv(&positions[i.y].x);
@@ -106,14 +114,10 @@ public:
         glDisable(GL_BLEND);
         glFlush();
     }
-
 };
-
 
 class rotation_estimator
 {
-    // theta is the angle of camera rotation in x, y and z components
-    float3 theta;
     std::mutex theta_mtx;
     /* alpha indicates the part that gyro and accelerometer take in computation of theta; higher alpha gives more weight to gyro, but too high
     values cause drift; lower alpha gives more weight to accelerometer, which is more sensitive to disturbances */
@@ -121,7 +125,10 @@ class rotation_estimator
     bool first = true;
     // Keeps the arrival time of previous gyro frame
     double last_ts_gyro = 0;
+
 public:
+    // theta is the angle of camera rotation in x, y and z components
+    float3 theta;
     // Function to calculate the change in angle of motion based on data from gyro
     void process_gyro(rs2_vector gyro_data, double ts)
     {
@@ -148,6 +155,7 @@ public:
         // Apply the calculated change of angle to the current angle (theta)
         std::lock_guard<std::mutex> lock(theta_mtx);
         theta.add(-gyro_angle.z, -gyro_angle.y, gyro_angle.x);
+        
     }
 
     void process_accel(rs2_vector accel_data)
@@ -180,7 +188,7 @@ public:
             theta.z = theta.z * alpha + accel_angle.z * (1 - alpha);
         }
     }
-    
+
     // Returns the current rotation angle
     float3 get_theta()
     {
@@ -188,7 +196,6 @@ public:
         return theta;
     }
 };
-
 
 bool check_imu_is_supported()
 {
@@ -217,8 +224,16 @@ bool check_imu_is_supported()
     return found_gyro && found_accel;
 }
 
-int main(int argc, char * argv[]) try
+int main(int argc, char *argv[])
 {
+    MoilView *mview;
+    mview = new MoilView();
+    mview->Show();
+    Mat infoMat = Mat::zeros(480, 640, CV_8UC3);
+    namedWindow("Info", WINDOW_AUTOSIZE);
+    moveWindow("Info", 0, 480);
+    char text[128];
+
     // Before running the example, check that a device supporting IMU is connected
     if (!check_imu_is_supported())
     {
@@ -227,7 +242,7 @@ int main(int argc, char * argv[]) try
     }
 
     // Initialize window for rendering
-    window app(1280, 720, "RealSense Motion Example");
+    window app(640, 480, "RealSense Motion Example");
     // Construct an object to manage view state
     glfw_state app_state(0.0, 0.0);
     // Register callbacks to allow manipulation of the view state
@@ -249,8 +264,7 @@ int main(int argc, char * argv[]) try
 
     // Start streaming with the given configuration;
     // Note that since we only allow IMU streams, only single frames are produced
-    auto profile = pipe.start(cfg, [&](rs2::frame frame)
-    {
+    auto profile = pipe.start(cfg, [&](rs2::frame frame) {
         // Cast the frame that arrived to motion frame
         auto motion = frame.as<rs2::motion_frame>();
         // If casting succeeded and the arrived frame is from gyro stream
@@ -272,27 +286,49 @@ int main(int argc, char * argv[]) try
             algo.process_accel(accel_data);
         }
     });
-
+    char c;
+    float3 theta_reset;
+    theta_reset.x = 0;
+    theta_reset.y = PI;
+    theta_reset.z = PI / 2;
     // Main loop
-    while (app)
+    while ((app) && ((int)c != 27))
     {
         // Configure scene, draw floor, handle manipultation by the user etc.
         render_scene(app_state);
         // Draw the camera according to the computed theta
-        camera.render_camera(algo.get_theta());
+        float3 this_theta = algo.get_theta();
+        this_theta.y = PI-this_theta.y;
+        camera.render_camera(this_theta);
+
+        c = mview->MainLoop(true);
+        if (c == 'z' || c == 'Z')
+            algo.theta = theta_reset;
+
+        this_theta.x = this_theta.x * 180 / PI;
+        if (this_theta.x > 360)
+            this_theta.x -= 360;
+        this_theta.y = this_theta.y * 180 / PI;
+        if (this_theta.y > 360)
+            this_theta.y -= 360;
+        this_theta.z = this_theta.z * 180 / PI;
+        if (this_theta.z > 360)
+            this_theta.z -= 360;
+
+        mview->AnypointGoto(90-this_theta.z, -this_theta.y);
+
+        rectangle(infoMat, Point(0, 0), Point(640, 480), CV_RGB(0, 0, 0), CV_FILLED);
+        sprintf(text, "x = %02f", this_theta.x);
+        putText(infoMat, text, Point(10, 50), FONT_HERSHEY_PLAIN, 2, Scalar::all(255), 1, 8);
+        sprintf(text, "y = %02f", this_theta.y);
+        putText(infoMat, text, Point(10, 100), FONT_HERSHEY_PLAIN, 2, Scalar::all(255), 1, 8);
+        sprintf(text, "z = %02f", this_theta.z);
+        putText(infoMat, text, Point(10, 150), FONT_HERSHEY_PLAIN, 2, Scalar::all(255), 1, 8);
+
+        imshow("Info", infoMat);
     }
     // Stop the pipeline
     pipe.stop();
-
+    delete mview;
     return EXIT_SUCCESS;
-}
-catch (const rs2::error & e)
-{
-    std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
-    return EXIT_FAILURE;
-}
-catch (const std::exception& e)
-{
-    std::cerr << e.what() << std::endl;
-    return EXIT_FAILURE;
 }

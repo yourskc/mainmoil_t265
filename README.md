@@ -1,13 +1,30 @@
 # Mainmoil T265
-modified from : 
-~/realsense/librealsense/examples/motion
 
-This version can be compiled standalone. It is modified from realsense sample code:
+This project integrate moildev library and realsense library, users can 
+control the view angle with T265. The original reference code is :   
+
 https://github.com/IntelRealSense/librealsense/tree/master/examples/motion
 
-For the next step, I hope to link with OpenCV.
+## Prereqisities
 
-> In order to run this example, a device supporting IMU (D435i) is required.
+Install librealsense on Ubuntu 18.04 :
+https://dev.intelrealsense.com/docs/compiling-librealsense-for-linux-ubuntu-guide
+
+Remember to run 'sudo make install' in the final step to install librealsense2
+to your system
+
+
+## Build and Run
+
+```
+git clone https://github.com/yourskc/mainmoil_t265.git
+cd mainmoil_t265
+mkdir build
+cd build
+cmake ..
+make
+./mainmoil
+```
 
 ## Overview
 This sample demonstrates how to use data from gyroscope and accelerometer to compute the rotation ([Euler Angles](https://en.wikipedia.org/wiki/Euler_angles)) of the camera, denoted by `theta`.
