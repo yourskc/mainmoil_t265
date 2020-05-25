@@ -13,8 +13,9 @@ Install librealsense on Ubuntu 18.04 :
 https://dev.intelrealsense.com/docs/compiling-librealsense-for-linux-ubuntu-guide
 
 Remember to run 'sudo make install' in the final step to install librealsense2
-to your system
+to your system.
 
+sudo apt install freeglut3-dev
 
 ## Build and Run
 
